@@ -319,7 +319,7 @@ class VideoDownloaderApp:
             "⬇️ НАЧАТЬ ЗАГРУЗКУ",
             command=self.start_download,
             style='success',
-            width=18
+            width=22
         )
         self.download_button.grid(row=1, column=3, pady=10)
 

@@ -122,6 +122,7 @@ class DownloadManager:
             # Базовые настройки
             ydl_opts = {
                 'outtmpl': os.path.join(download_info['path'], '%(title)s.%(ext)s'),
+                'cookiefile' : r'D:\БГУИР\msis\cookies.txt',
                 'noplaylist': True,
                 'progress_hooks': [lambda d: self._progress_hook(d, download_id)],
                 'quiet': False,  # Включаем вывод для диагностики
