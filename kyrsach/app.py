@@ -759,7 +759,6 @@ class VideoDownloaderApp:
             self.status_var.set("✅ Элемент удален из списка")
     
     def show_about(self):
-        """Показывает окно 'О программе'"""
         about_info = {
             "🎥 Приложение": f"{AppConfig.APP_NAME} v{AppConfig.VERSION}",
             "📝 Описание": "Современное приложение для загрузки видео и аудио",
