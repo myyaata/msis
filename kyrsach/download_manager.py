@@ -117,22 +117,19 @@ class DownloadManager:
             # Добавляем случайную задержку
             time.sleep(random.uniform(0.5, 2.0))
 
-
-
             # Базовые настройки
             ydl_opts = {
                 'outtmpl': os.path.join(download_info['path'], '%(title)s.%(ext)s'),
-                'cookiefile' : r'D:\БГУИР\msis\cookies.txt',
                 'noplaylist': True,
                 'progress_hooks': [lambda d: self._progress_hook(d, download_id)],
-                'quiet': False,  # Включаем вывод для диагностики
+                'quiet': False,
                 'no_warnings': False,
                 'fragment_retries': 10,
                 'retries': 5,
                 'http_headers': {
                     'User-Agent': self._get_user_agent(),
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'en-us,en;q=0.5',
+                    'Accept-Language': 'en-US,en;q=0.9',
                     'Accept-Encoding': 'gzip, deflate',
                     'DNT': '1',
                     'Connection': 'keep-alive',
@@ -153,7 +150,6 @@ class DownloadManager:
                 'ignoreerrors': False,
                 'no_check_certificates': True,
                 'prefer_insecure': False,
-                # Отключаем прокси принудительно
                 'proxy': '',
                 'source_address': None
             }
@@ -162,25 +158,44 @@ class DownloadManager:
 
             # Специальные настройки для разных сервисов
             if service_name == 'YouTube':
+                # Проверяем наличие файла cookies
+                cookies_path = r'D:\БГУИР\msis\cookies.txt'
+                if not os.path.exists(cookies_path):
+                    # Пробуем найти в домашней директории
+                    home_cookies = os.path.expanduser('~/cookies.txt')
+                    if os.path.exists(home_cookies):
+                        cookies_path = home_cookies
+                    else:
+                        cookies_path = None
+
                 ydl_opts.update({
                     'http_headers': {
                         **ydl_opts['http_headers'],
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                         'Referer': 'https://www.youtube.com/',
                         'Origin': 'https://www.youtube.com',
+                        'Accept-Language': 'en-US,en;q=0.9',
                     },
                     'extractor_args': {
                         'youtube': {
-                            'player_client': ['web'],  # Используем только web клиент
-                            'skip': ['hls'],
-                            'formats': 'missing_pot'  # Разрешаем форматы без PO Token
+                            'player_client': ['ios', 'web', 'android'],
+                            'skip': ['hls', 'dash'],
                         }
                     },
-                    # Упрощенные настройки формата
-                    'format': 'best[ext=mp4]/best',
+                    # Более универсальные форматы
+                    'format': 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b',
+                    'merge_output_format': 'mp4',
                     'no_check_certificates': True,
                     'ignoreerrors': False,
+                    'allow_unplayable_formats': False,
                 })
+
+                if cookies_path:
+                    ydl_opts['cookiefile'] = cookies_path
+                    logger.info(f"Используются cookies из: {cookies_path}")
+                else:
+                    logger.warning("Файл cookies.txt не найден. Для некоторых видео может потребоваться авторизация.")
+
             elif service_name == 'TikTok':
                 ydl_opts.update({
                     'http_headers': {
@@ -238,14 +253,14 @@ class DownloadManager:
                 )
 
                 if service_name == 'YouTube':
-                    # Специальные форматы для YouTube
+                    # Специальные форматы для YouTube с учетом новых ограничений
                     format_map = {
-                        'best[height<=2160]': 'best[height<=2160][ext=mp4]/best[height<=2160]/best[ext=mp4]/best',
-                        'best[height<=1080]': 'best[height<=1080][ext=mp4]/best[height<=1080]/best[ext=mp4]/best',
-                        'best[height<=720]': 'best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best',
-                        'best[height<=480]': 'best[height<=480][ext=mp4]/best[height<=480]/best[ext=mp4]/best',
-                        'best[height<=360]': 'best[height<=360][ext=mp4]/best[height<=360]/best[ext=mp4]/best',
-                        'best': 'best[ext=mp4]/best'
+                        'best[height<=2160]': 'bv*[height<=2160][ext=mp4]+ba[ext=m4a]/b[height<=2160][ext=mp4]/bv*[height<=2160]+ba/b',
+                        'best[height<=1080]': 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[height<=1080][ext=mp4]/bv*[height<=1080]+ba/b',
+                        'best[height<=720]': 'bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/bv*[height<=720]+ba/b',
+                        'best[height<=480]': 'bv*[height<=480][ext=mp4]+ba[ext=m4a]/b[height<=480][ext=mp4]/bv*[height<=480]+ba/b',
+                        'best[height<=360]': 'bv*[height<=360][ext=mp4]+ba[ext=m4a]/b[height<=360][ext=mp4]/bv*[height<=360]+ba/b',
+                        'best': 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b'
                     }
                     ydl_opts['format'] = format_map.get(quality_format, format_map['best'])
                 elif service_name == 'TikTok':
@@ -323,14 +338,16 @@ class DownloadManager:
             # Более информативные сообщения об ошибках
             if "ffmpeg" in error_msg.lower() or "ffprobe" in error_msg.lower():
                 error_msg = "Ошибка: Требуется установить FFmpeg для конвертации аудио/видео"
-            elif "format" in error_msg.lower():
-                error_msg = f"Ошибка: Формат не поддерживается для {service_name}"
+            elif "only images are available" in error_msg.lower():
+                error_msg = "Ошибка: YouTube изменил защиту. Попробуйте: 1) Обновить yt-dlp 2) Использовать cookies.txt"
+            elif "format" in error_msg.lower() and "not available" in error_msg.lower():
+                error_msg = f"Ошибка: Запрошенный формат недоступен. Попробуйте другое качество или обновите yt-dlp"
+            elif "nsig" in error_msg.lower() or "player" in error_msg.lower():
+                error_msg = "Ошибка: Устаревшая версия yt-dlp. Обновите: pip install --upgrade yt-dlp"
             elif "404" in error_msg or "not found" in error_msg.lower():
                 error_msg = "Ошибка: Контент не найден или недоступен"
             elif "private" in error_msg.lower():
                 error_msg = "Ошибка: Контент является приватным"
-            elif "player response" in error_msg.lower():
-                error_msg = "Ошибка: Устаревшая версия yt-dlp. Обновите через: pip install --upgrade yt-dlp"
             elif "connection" in error_msg.lower() or "transport" in error_msg.lower():
                 error_msg = "Ошибка: Проблема с сетевым подключением. Проверьте интернет"
             elif "control characters" in error_msg:

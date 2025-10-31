@@ -214,6 +214,8 @@ class VideoDownloaderApp:
 
         self.url_entry.bind('<KeyRelease>', self.on_url_change)
         self.url_entry.bind('<Control-v>', self.on_paste)
+        self.url_entry.bind('<Command-v>', self.on_paste)  # Для macOS
+        self.url_entry.bind('<<Paste>>', self.on_paste)  # Универсальное событие вставки
         self.url_entry.bind('<Button-3>', self.show_url_context_menu)
 
         self.info_button = ModernButton(
